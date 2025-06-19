@@ -4,11 +4,11 @@ import { ref, computed } from 'vue';
 
 export const useCartStore = defineStore('cart', () => {
   const items = ref([
-    // Isi dengan data dari halaman Keranjang sebagai contoh awal
-    { id: 1, name: 'Kaktus Bola Kecil', price: 30000, image: '/images/kaktus-set.jpg', quantity: 2 },
-    { id: 2, name: 'Jade Plant Elegance', price: 89000, image: '/images/jade-plant.jpg', quantity: 1 },
-    { id: 4, name: 'Bambu Air', price: 39000, image: '/images/bambu-air.jpg', quantity: 1 },
-    { id: 5, name: 'Sirih Gading Golden', price: 58000, image: '/images/sirih-gading.jpg', quantity: 1 },
+    // PERBAIKAN: Mengganti ekstensi .jpg menjadi .png sesuai file yang ada
+    { id: 1, name: 'Kaktus Bola Kecil', price: 30000, image: '/images/kaktus-set.png', quantity: 2 },
+    { id: 2, name: 'Jade Plant Elegance', price: 89000, image: '/images/plant.png', quantity: 1 }, // Asumsi gambar jade plant adalah plant.png
+    { id: 4, name: 'Bambu Air', price: 39000, image: '/images/bambu-air.png', quantity: 1 },
+    { id: 5, name: 'Sirih Gading Golden', price: 58000, image: '/images/sirih-gading.png', quantity: 1 },
   ]);
 
   const couponCode = ref('');
@@ -19,7 +19,9 @@ export const useCartStore = defineStore('cart', () => {
   });
 
   const total = computed(() => {
-    return subtotal.value - discount.value;
+    // Pastikan total tidak minus
+    const finalTotal = subtotal.value - discount.value;
+    return finalTotal < 0 ? 0 : finalTotal;
   });
 
   function getItemSubtotal(item) {
@@ -29,6 +31,7 @@ export const useCartStore = defineStore('cart', () => {
   function applyCoupon() {
     if (couponCode.value.toUpperCase() === 'KDASO9123') {
       discount.value = 15000;
+      // Bisa ditambahkan notifikasi sukses
     } else {
       alert('Kode kupon tidak valid!');
       discount.value = 0;
@@ -48,5 +51,22 @@ export const useCartStore = defineStore('cart', () => {
     }
   }
 
-  return { items, couponCode, discount, subtotal, total, applyCoupon, removeItem, updateQuantity, getItemSubtotal };
+  // Tambahan: Fungsi untuk menambahkan item ke keranjang dari halaman produk
+  function addItem(product) {
+    const existingItem = items.value.find(item => item.id === product.id);
+    if (existingItem) {
+      existingItem.quantity++;
+    } else {
+      items.value.push({ ...product, quantity: 1 });
+    }
+  }
+  
+  // Tambahan: Fungsi untuk mengosongkan keranjang setelah checkout
+  function clearCart() {
+    items.value = [];
+    discount.value = 0;
+    couponCode.value = '';
+  }
+
+  return { items, couponCode, discount, subtotal, total, applyCoupon, removeItem, updateQuantity, getItemSubtotal, addItem, clearCart };
 });
