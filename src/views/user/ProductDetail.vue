@@ -1,72 +1,62 @@
 <template>
   <div class="container mx-auto px-4 py-8">
-    <div v-if="orderStore.isLoading" class="text-center">Memuat detail pesanan...</div>
-    <div v-else-if="orderStore.error" class="text-center text-red-500">{{ orderStore.error }}</div>
-    <div v-else-if="order" class="bg-white p-8 rounded-lg shadow-lg max-w-4xl mx-auto">
-      <div class="flex justify-between items-start">
-        <div>
-          <h1 class="text-2xl font-bold">Detail Pesanan #{{ order.id }}</h1>
-          <p class="text-gray-500">Tanggal Pesan: {{ new Date(order.created_at).toLocaleString('id-ID') }}</p>
-        </div>
-        <span class="px-3 py-1 text-sm font-semibold rounded-full" :class="statusClass(order.status)">
-          {{ order.status }}
-        </span>
-      </div>
-      <hr class="my-6">
+    <div v-if="productStore.isLoading" class="text-center p-10">
+      <p>Memuat produk...</p>
+    </div>
+    <div v-else-if="productStore.error" class="text-center p-10 text-red-500">
+      <p>{{ productStore.error }}</p>
+    </div>
+    
+    <div v-else-if="product" class="grid md:grid-cols-2 gap-8 lg:gap-12">
       <div>
-        <h2 class="text-lg font-semibold mb-2">Alamat Pengiriman</h2>
-        <p class="text-gray-700">{{ order.shipping_address }}</p>
-        <p v-if="order.notes" class="text-sm text-gray-500 mt-1">Catatan: {{ order.notes }}</p>
+        <img :src="product.imageUrl" :alt="product.name" class="w-full h-auto rounded-lg shadow-lg aspect-square object-cover">
       </div>
-      <hr class="my-6">
       <div>
-        <h2 class="text-lg font-semibold mb-4">Item Pesanan</h2>
-        <div v-for="item in order.order_details" :key="item.id" class="flex justify-between items-center mb-4">
-          <div>
-            <p class="font-medium">{{ item.plant.name }}</p>
-            <p class="text-sm text-gray-600">{{ item.quantity }} x Rp {{ parseFloat(item.price).toLocaleString('id-ID') }}</p>
-          </div>
-          <p class="font-semibold">Rp {{ (item.quantity * item.price).toLocaleString('id-ID') }}</p>
+        <h1 class="text-4xl font-bold mb-2">{{ product.name }}</h1>
+        <div class="flex items-center mb-4">
+            <span class="text-sm font-medium text-gray-600 mr-2">Kategori:</span>
+            <span class="bg-gray-200 text-gray-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">{{ product.category.name }}</span>
+            <span class="bg-blue-100 text-blue-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">{{ product.plant_type.name }}</span>
         </div>
-      </div>
-      <hr class="my-6 border-dashed">
-      <div class="flex justify-end">
-        <div class="w-full max-w-xs">
-          <div class="flex justify-between text-lg font-bold">
-            <span>Total</span>
-            <span>Rp {{ parseFloat(order.total_price).toLocaleString('id-ID') }}</span>
-          </div>
+        <p class="text-3xl text-green-600 font-semibold mb-4">Rp {{ parseFloat(product.price).toLocaleString('id-ID') }}</p>
+        
+        <p class="text-gray-700 leading-relaxed mb-6">{{ product.description }}</p>
+        
+        <p class="text-sm text-gray-500 mb-4">Stok tersedia: {{ product.stock }}</p>
+
+        <div class="flex items-center gap-4">
+           <input type="number" v-model.number="quantity" min="1" :max="product.stock" class="w-24 border-gray-300 rounded-md shadow-sm text-center py-3">
+          <button @click="handleAddToCart" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400" :disabled="quantity > product.stock || quantity < 1">
+            Tambah ke Keranjang
+          </button>
         </div>
+        <p v-if="quantity > product.stock" class="text-red-500 text-sm mt-2">Jumlah melebihi stok yang tersedia.</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, computed } from 'vue';
-import { useOrderStore } from '@/stores/order';
+import { onMounted, computed, ref } from 'vue';
+import { useRoute } from 'vue-router';
+import { useProductStore } from '@/stores/product';
+import { useCartStore } from '@/stores/cart';
 
-const props = defineProps({
-  id: {
-    type: [String, Number],
-    required: true
-  }
-});
+const route = useRoute();
+const productStore = useProductStore(); 
+const cartStore = useCartStore();
 
-const orderStore = useOrderStore();
-const order = computed(() => orderStore.order);
+const product = computed(() => productStore.plant);
+const quantity = ref(1);
 
 onMounted(() => {
-  orderStore.fetchOrder(props.id);
+  productStore.fetchPlant(route.params.slug);
 });
 
-const statusClass = (status) => {
-    switch (status) {
-    case 'pending': return 'bg-yellow-100 text-yellow-800';
-    case 'confirmed': return 'bg-blue-100 text-blue-800';
-    case 'completed': return 'bg-green-100 text-green-800';
-    case 'canceled': return 'bg-red-100 text-red-800';
-    default: return 'bg-gray-100 text-gray-800';
+function handleAddToCart() {
+  if (product.value && quantity.value > 0) {
+    cartStore.addItem(product.value, quantity.value);
+    alert(`${quantity.value} ${product.value.name} telah ditambahkan ke keranjang!`);
   }
-};
+}
 </script>
