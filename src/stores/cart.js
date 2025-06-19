@@ -3,70 +3,63 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 
 export const useCartStore = defineStore('cart', () => {
-  const items = ref([
-    // PERBAIKAN: Mengganti ekstensi .jpg menjadi .png sesuai file yang ada
-    { id: 1, name: 'Kaktus Bola Kecil', price: 30000, image: '/images/kaktus-set.png', quantity: 2 },
-    { id: 2, name: 'Jade Plant Elegance', price: 89000, image: '/images/plant.png', quantity: 1 }, // Asumsi gambar jade plant adalah plant.png
-    { id: 4, name: 'Bambu Air', price: 39000, image: '/images/bambu-air.png', quantity: 1 },
-    { id: 5, name: 'Sirih Gading Golden', price: 58000, image: '/images/sirih-gading.png', quantity: 1 },
-  ]);
+  // Memuat keranjang dari localStorage
+  const items = ref(JSON.parse(localStorage.getItem('cartItems')) || []);
 
-  const couponCode = ref('');
-  const discount = ref(0);
+  const saveCartToLocalStorage = () => {
+    localStorage.setItem('cartItems', JSON.stringify(items.value));
+  };
 
   const subtotal = computed(() => {
-    return items.value.reduce((total, item) => total + item.price * item.quantity, 0);
+    return items.value.reduce((total, item) => total + (parseFloat(item.price) * item.quantity), 0);
   });
-
-  const total = computed(() => {
-    // Pastikan total tidak minus
-    const finalTotal = subtotal.value - discount.value;
-    return finalTotal < 0 ? 0 : finalTotal;
-  });
-
-  function getItemSubtotal(item) {
-    return item.price * item.quantity;
-  }
-
-  function applyCoupon() {
-    if (couponCode.value.toUpperCase() === 'KDASO9123') {
-      discount.value = 15000;
-      // Bisa ditambahkan notifikasi sukses
-    } else {
-      alert('Kode kupon tidak valid!');
-      discount.value = 0;
-    }
-  }
-
-  function removeItem(itemId) {
-    items.value = items.value.filter(item => item.id !== itemId);
-  }
   
+  const totalItems = computed(() => {
+    return items.value.reduce((total, item) => total + item.quantity, 0);
+  });
+
+  function addItem(product, quantity = 1) {
+    const existingItem = items.value.find(item => item.id === product.id);
+    if (existingItem) {
+      existingItem.quantity += quantity;
+    } else {
+      // Hanya simpan data yang relevan untuk mengurangi size localStorage
+      items.value.push({ 
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.imageUrl,
+        stock: product.stock,
+        quantity: quantity 
+      });
+    }
+    saveCartToLocalStorage();
+  }
+
   function updateQuantity(itemId, newQuantity) {
     const item = items.value.find(item => item.id === itemId);
     if (item && newQuantity > 0) {
-      item.quantity = newQuantity;
+      if(newQuantity > item.stock) {
+        alert(`Stok tidak mencukupi. Sisa stok: ${item.stock}`);
+        item.quantity = item.stock;
+      } else {
+        item.quantity = newQuantity;
+      }
     } else if (item && newQuantity <= 0) {
       removeItem(itemId);
     }
-  }
-
-  // Tambahan: Fungsi untuk menambahkan item ke keranjang dari halaman produk
-  function addItem(product) {
-    const existingItem = items.value.find(item => item.id === product.id);
-    if (existingItem) {
-      existingItem.quantity++;
-    } else {
-      items.value.push({ ...product, quantity: 1 });
-    }
+    saveCartToLocalStorage();
   }
   
-  // Tambahan: Fungsi untuk mengosongkan keranjang setelah checkout
-  function clearCart() {
-    items.value = [];
-    discount.value = 0;
-    couponCode.value = '';
+  function removeItem(itemId) {
+    items.value = items.value.filter(item => item.id !== itemId);
+    saveCartToLocalStorage();
   }
 
-  return { items, couponCode, discount, subtotal, total, applyCoupon, removeItem, updateQuantity, getItemSubtotal, addItem, clearCart };
-});
+  function clearCart() {
+    items.value = [];
+    localStorage.removeItem('cartItems');
+  }
+
+  return { items, subtotal, totalItems, addItem, updateQuantity, removeItem, clearCart };
+}, { persist: true }); 
